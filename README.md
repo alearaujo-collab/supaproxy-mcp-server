@@ -166,9 +166,74 @@ For data modifications, Claude uses the structured CRUD tools (`insert_record`, 
 ```bash
 # Run directly (without installing)
 python -m supaproxy_mcp.server
+```
 
-# Build with PyInstaller
-pyinstaller run_mcp.py --name SupaProxyMCP --onefile
+
+## 🚀 Parte 1: Empacotando (Máquina do Desenvolvedor)
+
+### Passo 1.1: Instalar o PyInstaller
+
+No terminal, com o ambiente virtual (`venv`) ativado, instale o empacotador:
+
+```cmd
+cd "C:\DEV\REPS\supaproxy-mcp-server"
+
+.venv\Scripts\activate
+
+pip install pyinstaller
+```
+
+### Passo 1.2: O Ponto de Entrada
+
+O arquivo `run_mcp.py` (já presente na raiz do projeto) é o script de entrada do PyInstaller. Ele:
+
+- Chama `multiprocessing.freeze_support()` — obrigatório no Windows com PyInstaller.
+- Importa explicitamente todos os módulos de tools e os transportes MCP que o PyInstaller não consegue detectar automaticamente (são carregados de forma dinâmica em runtime).
+- Delega a execução para `supaproxy_mcp.server.main()`, que já lida com os argumentos `--transport`, `--host` e `--port`.
+
+Você não precisa criar este arquivo — ele já existe no projeto.
+
+### Passo 1.3: Realizando o Build
+
+No terminal (raiz do projeto, com venv ativado), execute o comando:
+
+```cmd
+pyinstaller --name "SupaProxyMCP" --onedir --clean run_mcp.py
+```
+
+> **Por que sem `--hidden-import`?** O `run_mcp.py` já importa estaticamente todos os módulos que o PyInstaller não conseguiria detectar sozinho (transportes MCP, tools, pydantic_settings). Com os imports explícitos no entry point, os flags `--hidden-import` se tornam redundantes.
+
+> **`--onedir`** gera uma pasta `dist\SupaProxyMCP\` com o executável e uma subpasta `_internal\` contendo o runtime Python e todas as bibliotecas. Esta é a abordagem preferida (mais fácil de depurar que `--onefile`).
+
+> **(⚠️ ModuleNotFoundError ao iniciar o `.exe`?)** Se ocorrer, adicione o import do módulo diretamente em `run_mcp.py` (ex: `import nome_do_modulo  # noqa: F401`) e recompile. Não é necessário usar `--hidden-import`.
+
+Ao terminar a compilação, a pasta `dist\SupaProxyMCP\` estará pronta.
+
+### Passo 1.4: Testando o Binário Localmente
+
+Antes de enviar ao servidor, teste o executável na própria máquina de desenvolvimento.
+
+**1. Copie o `.env`** para a pasta `dist\SupaProxyMCP\`:
+```cmd
+copy .env dist\SupaProxyMCP\.env
+```
+
+**2. Run**
+
+```bash
+cd dist\SupaProxyMCP
+
+# stdio transport (default — Claude Desktop / Claude Code)
+.\SupaProxyMCP.exe
+
+# SSE + Streamable HTTP transport (web clients)
+.\SupaProxyMCP.exe --transport sse
+.\SupaProxyMCP.exe --transport sse --host 127.0.0.1 --port 9001
+
+
+# Swagger
+http://127.0.0.1:9001/docs
+
 ```
 
 ## License
