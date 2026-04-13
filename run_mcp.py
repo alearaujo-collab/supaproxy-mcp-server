@@ -21,6 +21,7 @@ import supaproxy_mcp.tools.auth              # noqa: F401
 import supaproxy_mcp.tools.crud              # noqa: F401
 import supaproxy_mcp.tools.functions         # noqa: F401
 import supaproxy_mcp.tools.knowledge         # noqa: F401
+import supaproxy_mcp.tools.navigation        # noqa: F401
 import supaproxy_mcp.tools.query             # noqa: F401
 import supaproxy_mcp.tools.schema            # noqa: F401
 import supaproxy_mcp.tools.secrets           # noqa: F401

@@ -15,7 +15,7 @@ from .docs import docs_handler, openapi_handler
 from .client import SupaProxyClient
 from .config import Settings
 from .header_context import forwarded_api_key, forwarded_connection_name, forwarded_token
-from .tools import auth, crud, functions, knowledge, query, schema, secrets, storage
+from .tools import auth, crud, functions, knowledge, navigation, query, schema, secrets, storage
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -143,6 +143,22 @@ mcp = FastMCP(
         "NUNCA peça ao usuário seu ID, e-mail ou senha.\n"
         "Se `get_current_user` retornar erro de autenticação, informe o "
         "usuário que a sessão expirou e ele deve recarregar a aplicação.\n"
+        "\n"
+        "## Links de navegação (deep links)\n"
+        "A aplicação que está chamando este MCP pode ter páginas e "
+        "formulários associados às entidades do banco de dados.\n"
+        "Quando sua resposta mencionar uma entidade específica (clientes, "
+        "pedidos, produtos, etc.) e o usuário puder se beneficiar de um "
+        "link direto para a página correspondente:\n"
+        "1. Chame `get_app_routes` filtrando pela entidade relevante.\n"
+        "2. Se houver rotas disponíveis, inclua links na resposta usando "
+        "o formato `[[nav:<rota>|<texto do link>]]`.\n"
+        "3. Substitua placeholders como `{id}` por valores reais quando "
+        "disponíveis. Exemplo: `[[nav:/clientes/42|Ver cliente Maria]]`.\n"
+        "4. Se `get_app_routes` retornar lista vazia (a aplicação não tem "
+        "a tabela AppNavigation), NÃO inclua links — responda normalmente.\n"
+        "5. Não inclua links em toda resposta — apenas quando for natural "
+        "e útil para o usuário navegar para aquela página.\n"
     ),
 )
 
@@ -158,6 +174,7 @@ storage.register(mcp, client)
 knowledge.register(mcp, client)
 functions.register(mcp, client)
 secrets.register(mcp, client)
+navigation.register(mcp, client)
 
 
 # ---------------------------------------------------------------------------
