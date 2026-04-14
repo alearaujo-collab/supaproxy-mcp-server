@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from typing import Optional
 
 import httpx
@@ -45,11 +46,17 @@ def register(mcp, client):  # noqa: ANN001
                 params["orderBy"] = order_by
             if order_dir:
                 params["orderDir"] = order_dir
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] list_files: bucket=%s, page=%d, page_size=%d", bucket, page, page_size)
             result = await client.get("/api/storage/list", params=params, include_connection=False)
+            total = result.get("totalRecords", "?") if isinstance(result, dict) else "?"
+            logger.info("[PERF <<<] list_files: %dms | totalRecords=%s", int((time.perf_counter() - t0) * 1000), total)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] list_files: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] list_files: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in list_files")
             return f"Unexpected error: {exc}"
 
@@ -65,11 +72,16 @@ def register(mcp, client):  # noqa: ANN001
             fileSize, title, caption, tags, knowledgeBaseIds, createdAt, etc.).
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] get_file_info: file_id=%s", file_id)
             result = await client.get(f"/api/storage/files/{file_id}/info", include_connection=False)
+            logger.info("[PERF <<<] get_file_info: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] get_file_info: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] get_file_info: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in get_file_info")
             return f"Unexpected error: {exc}"
 
@@ -103,15 +115,20 @@ def register(mcp, client):  # noqa: ANN001
                 body["tags"] = tags
             if knowledge_base_ids is not None:
                 body["knowledgeBaseIds"] = knowledge_base_ids
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] update_file_metadata: file_id=%s, fields=%s", file_id, list(body.keys()))
             result = await client.patch(
                 f"/api/storage/files/{file_id}/metadata",
                 json=body,
                 include_connection=False,
             )
+            logger.info("[PERF <<<] update_file_metadata: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] update_file_metadata: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] update_file_metadata: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in update_file_metadata")
             return f"Unexpected error: {exc}"
 
@@ -128,13 +145,18 @@ def register(mcp, client):  # noqa: ANN001
             JSON confirmation, or an error message.
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] delete_file: file_id=%s, permanent=%s", file_id, permanent)
             result = await client.delete(
                 f"/api/storage/files/{file_id}?permanent={'true' if permanent else 'false'}",
                 include_connection=False,
             )
+            logger.info("[PERF <<<] delete_file: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] delete_file: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] delete_file: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in delete_file")
             return f"Unexpected error: {exc}"

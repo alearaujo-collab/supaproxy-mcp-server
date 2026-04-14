@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 
 import httpx
 
@@ -26,11 +27,18 @@ def register(mcp, client):  # noqa: ANN001
             JSON object with a list of tables/views, or an error message.
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] list_tables")
             result = await client.get("/api/sql-server/schema/tables")
+            tables = result.get("tables", result) if isinstance(result, dict) else result
+            count = len(tables) if isinstance(tables, list) else "?"
+            logger.info("[PERF <<<] list_tables: %dms | count=%s", int((time.perf_counter() - t0) * 1000), count)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] list_tables: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] list_tables: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in list_tables")
             return f"Unexpected error: {exc}"
 
@@ -62,11 +70,18 @@ def register(mcp, client):  # noqa: ANN001
             params: dict = {"table": table}
             if column_name:
                 params["columnName"] = column_name
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] describe_table: table=%s, column=%s", table, column_name)
             result = await client.get("/api/sql-server/schema/columns", params=params)
+            cols = result.get("columns", result) if isinstance(result, dict) else result
+            count = len(cols) if isinstance(cols, list) else "?"
+            logger.info("[PERF <<<] describe_table: %dms | columns=%s", int((time.perf_counter() - t0) * 1000), count)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] describe_table: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] describe_table: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in describe_table")
             return f"Unexpected error: {exc}"
 
@@ -82,10 +97,15 @@ def register(mcp, client):  # noqa: ANN001
             JSON object with health status, or an error message.
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] health_check")
             result = await client.get("/api/sql-server/health")
+            logger.info("[PERF <<<] health_check: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] health_check: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] health_check: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in health_check")
             return f"Unexpected error: {exc}"

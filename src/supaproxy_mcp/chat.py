@@ -91,12 +91,20 @@ async def _call_tool_direct(mcp, name: str, arguments: dict) -> str:
     Retorna str com o resultado, ou "Tool error: ..." em caso de falha.
     Nunca lança exceção — o loop agêntico sempre continua.
     """
+    t0 = time.perf_counter()
+    logger.info("[PERF >>>] _call_tool_direct: tool=%s args_keys=%s", name, list(arguments.keys()))
     try:
         result = await mcp._tool_manager.call_tool(name, arguments)
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
         if isinstance(result, str):
+            logger.info("[PERF <<<] _call_tool_direct: tool=%s | %dms | result_len=%d", name, elapsed_ms, len(result))
             return result
-        return json.dumps(result, ensure_ascii=False)
+        out = json.dumps(result, ensure_ascii=False)
+        logger.info("[PERF <<<] _call_tool_direct: tool=%s | %dms | result_len=%d", name, elapsed_ms, len(out))
+        return out
     except Exception as exc:
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        logger.warning("[PERF !!!] _call_tool_direct: tool=%s falha apos %dms — %s", name, elapsed_ms, exc)
         logger.warning("Tool '%s' failed: %s", name, exc)
         return f"Tool error: {exc}"
 
@@ -145,12 +153,14 @@ async def _run_agentic_loop(
     Lança RuntimeError se o provider falhar após todos os retries.
     """
     t_loop_start = time.perf_counter()
+    logger.info("[PERF >>>] _run_agentic_loop: iniciando (model=%s, max_iter=%d)", settings.ai_model, settings.ai_max_tool_iterations)
     final: dict = {"text": "", "model": settings.ai_model, "stop_reason": "end_turn"}
 
     for iteration in range(settings.ai_max_tool_iterations):
 
         # ── 1. Chamar o LLM ─────────────────────────────────────────────
         t0 = time.perf_counter()
+        logger.info("[PERF >>>] Anthropic.messages.create: iter=%d, model=%s", iteration + 1, settings.ai_model)
         response = None
         last_exc = None
 
@@ -198,6 +208,8 @@ async def _run_agentic_loop(
             elif block.type == "tool_use":
                 tool_use_blocks.append(block)
 
+        logger.info("[PERF <<<] Anthropic.messages.create: iter=%d | %dms | stop=%s | tool_calls=%d",
+            iteration + 1, int(llm_ms), response.stop_reason, len(tool_use_blocks))
         logger.info(
             "[loop iter=%d] LLM call: %.0f ms | stop_reason=%s | tool_calls=%d",
             iteration + 1, llm_ms, response.stop_reason, len(tool_use_blocks),
@@ -205,6 +217,9 @@ async def _run_agentic_loop(
 
         # ── 3. Sem tool calls → resposta final ──────────────────────────
         if not tool_use_blocks:
+            total_ms = int((time.perf_counter() - t_loop_start) * 1000)
+            logger.info("[PERF <<<] _run_agentic_loop: %d iter | total=%dms | stop=%s",
+                iteration + 1, total_ms, response.stop_reason)
             logger.info(
                 "[loop] finished after %d iteration(s) | total: %.0f ms",
                 iteration + 1, (time.perf_counter() - t_loop_start) * 1000,
@@ -245,6 +260,9 @@ async def _run_agentic_loop(
         final = {"text": text, "model": response.model, "stop_reason": response.stop_reason or ""}
 
     # ── Limite de iterações atingido ─────────────────────────────────────
+    total_ms = int((time.perf_counter() - t_loop_start) * 1000)
+    logger.info("[PERF <<<] _run_agentic_loop: max_iter=%d atingido | total=%dms",
+        settings.ai_max_tool_iterations, total_ms)
     logger.warning(
         "[loop] hit max iterations (%d) | total: %.0f ms",
         settings.ai_max_tool_iterations,
@@ -314,6 +332,7 @@ def make_chat_handler(mcp, settings):
         tok = forwarded_token.set(token)
         tok_api_key = forwarded_api_key.set(api_key)
         tok_conn = forwarded_connection_name.set(connection_name)
+        logger.info("[PERF >>>] handler: iniciando (connection=%s)", connection_name)
 
         try:
             # ── 3. Parsear body ──────────────────────────────────────────
@@ -330,6 +349,7 @@ def make_chat_handler(mcp, settings):
                 for m in (chat_req.conversation_history or [])
             ]
             messages.append({"role": "user", "content": chat_req.message})
+            logger.info("[PERF] handler: parse+build_messages=%dms", int((time.perf_counter() - t_request) * 1000))
 
             # ── 5. Executar loop agêntico ────────────────────────────────
             try:
@@ -337,9 +357,12 @@ def make_chat_handler(mcp, settings):
                     anthropic_client, mcp, messages, tools, settings
                 )
             except RuntimeError as exc:
+                logger.error("[PERF !!!] handler: LLM error apos %dms — %s", int((time.perf_counter() - t_request) * 1000), exc)
                 logger.error("LLM provider error: %s", exc)
                 return JSONResponse({"detail": str(exc)}, status_code=502)
 
+            logger.info("[PERF <<<] handler: total=%dms | model=%s | stop=%s",
+                int((time.perf_counter() - t_request) * 1000), result["model"], result["stop_reason"])
             logger.info(
                 "[chat] request completed in %.0f ms",
                 (time.perf_counter() - t_request) * 1000,
@@ -354,6 +377,7 @@ def make_chat_handler(mcp, settings):
             )
 
         except Exception as exc:
+            logger.warning("[PERF !!!] handler: erro inesperado apos %dms — %s", int((time.perf_counter() - t_request) * 1000), exc)
             logger.exception("Unexpected error in /ai/chat: %s", exc)
             return JSONResponse({"detail": f"Internal error: {exc}"}, status_code=500)
 

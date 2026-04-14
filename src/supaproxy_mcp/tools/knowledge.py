@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from typing import Optional
 
 import httpx
@@ -60,13 +61,22 @@ def register(mcp, client):  # noqa: ANN001
                 body["top_k"] = top_k
             if conversation_history:
                 body["conversation_history"] = conversation_history
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] ask_knowledge_base: question=%.60s, top_k=%s, filters=%s",
+                question, top_k, list(filters.keys()) if filters else [])
             result = await client.post(
                 "/api/storage/knowledge/ask", json=body, include_connection=False,
             )
+            retrieval = result.get("retrieval_info", {}) if isinstance(result, dict) else {}
+            chunks = retrieval.get("chunks_retrieved", "?")
+            logger.info("[PERF <<<] ask_knowledge_base: %dms | chunks_retrieved=%s",
+                int((time.perf_counter() - t0) * 1000), chunks)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] ask_knowledge_base: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] ask_knowledge_base: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in ask_knowledge_base")
             return f"Unexpected error: {exc}"
 
@@ -82,14 +92,20 @@ def register(mcp, client):  # noqa: ANN001
             (pending/sent/indexed/failed), last_sent_at, and last_error.
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] kb_document_status: document_id=%s", document_id)
             result = await client.get(
                 f"/api/storage/knowledge/{document_id}/status",
                 include_connection=False,
             )
+            status = result.get("kb_status", "?") if isinstance(result, dict) else "?"
+            logger.info("[PERF <<<] kb_document_status: %dms | kb_status=%s", int((time.perf_counter() - t0) * 1000), status)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] kb_document_status: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] kb_document_status: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in kb_document_status")
             return f"Unexpected error: {exc}"
 
@@ -107,14 +123,20 @@ def register(mcp, client):  # noqa: ANN001
             JSON object with document_id, kb_status, and last_error.
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] kb_retry_document: document_id=%s", document_id)
             result = await client.post(
                 f"/api/storage/knowledge/{document_id}/retry",
                 include_connection=False,
             )
+            status = result.get("kb_status", "?") if isinstance(result, dict) else "?"
+            logger.info("[PERF <<<] kb_retry_document: %dms | kb_status=%s", int((time.perf_counter() - t0) * 1000), status)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] kb_retry_document: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] kb_retry_document: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in kb_retry_document")
             return f"Unexpected error: {exc}"
 
@@ -139,15 +161,20 @@ def register(mcp, client):  # noqa: ANN001
         """
         try:
             body = {"metadataJson": metadata_json, "reindex": reindex}
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] kb_update_metadata: document_id=%s, reindex=%s", document_id, reindex)
             result = await client.put(
                 f"/api/storage/knowledge/{document_id}/metadata",
                 json=body,
                 include_connection=False,
             )
+            logger.info("[PERF <<<] kb_update_metadata: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] kb_update_metadata: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] kb_update_metadata: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in kb_update_metadata")
             return f"Unexpected error: {exc}"
 
@@ -164,13 +191,18 @@ def register(mcp, client):  # noqa: ANN001
             JSON object with document_id and deleted status.
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] kb_delete_metadata: document_id=%s", document_id)
             result = await client.delete(
                 f"/api/storage/knowledge/{document_id}/status",
                 include_connection=False,
             )
+            logger.info("[PERF <<<] kb_delete_metadata: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] kb_delete_metadata: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] kb_delete_metadata: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in kb_delete_metadata")
             return f"Unexpected error: {exc}"

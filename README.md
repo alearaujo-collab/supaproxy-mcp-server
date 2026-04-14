@@ -61,6 +61,9 @@ supaproxy-mcp
 supaproxy-mcp --transport sse
 supaproxy-mcp --transport sse --host 127.0.0.1 --port 9001
 
+supaproxy-mcp --transport sse --host 127.0.0.1 --port 9001 2>&1 | Select-String "PERF" #PERF logs filter
+supaproxy-mcp --transport sse --host 127.0.0.1 --port 9001 2>&1 | grep PERF #PERF logs filter
+
 # Health Check
 http://127.0.0.1:9001/health
 ```

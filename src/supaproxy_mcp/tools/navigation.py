@@ -22,6 +22,7 @@ endpoint, inheriting the caller's connection automatically.
 
 import json
 import logging
+import time
 from typing import Optional
 
 import httpx
@@ -94,7 +95,12 @@ def register(mcp, client):  # noqa: ANN001
             if parameters:
                 body["parameters"] = parameters
 
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] get_app_routes: entity=%s, action=%s", entity, action)
             result = await client.post("/api/sql-server/query", json=body)
+            rows = result["data"] if isinstance(result, dict) and "data" in result else result
+            count = len(rows) if isinstance(rows, list) else "?"
+            logger.info("[PERF <<<] get_app_routes: %dms | routes=%s", int((time.perf_counter() - t0) * 1000), count)
 
             # Normalise: return just the data rows for the LLM.
             if isinstance(result, dict) and "data" in result:
@@ -110,7 +116,9 @@ def register(mcp, client):  # noqa: ANN001
                     exc.response.status_code,
                 )
                 return "[]"
+            logger.warning("[PERF !!!] get_app_routes: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] get_app_routes: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in get_app_routes")
             return f"Unexpected error: {exc}"

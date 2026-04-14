@@ -1,6 +1,7 @@
 """Async HTTP client for the SupaProxy REST API with header forwarding."""
 
 import logging
+import time
 from typing import Any
 
 import httpx
@@ -67,14 +68,25 @@ class SupaProxyClient:
         include_connection: bool = True,
     ) -> Any:
         url = self._url(path)
-        response = await self._http.request(
-            method,
-            url,
-            headers=self._headers(include_connection=include_connection),
-            params=params,
-            json=json,
-            data=data,
-        )
+        t0 = time.perf_counter()
+        logger.info("[PERF >>>] SupaProxyClient._request: %s %s", method, path)
+        try:
+            response = await self._http.request(
+                method,
+                url,
+                headers=self._headers(include_connection=include_connection),
+                params=params,
+                json=json,
+                data=data,
+            )
+            elapsed_ms = int((time.perf_counter() - t0) * 1000)
+            logger.info("[PERF <<<] SupaProxyClient._request: %s %s | %dms | status=%d",
+                method, path, elapsed_ms, response.status_code)
+        except Exception as exc:
+            elapsed_ms = int((time.perf_counter() - t0) * 1000)
+            logger.error("[PERF !!!] SupaProxyClient._request: %s %s falha apos %dms — %s",
+                method, path, elapsed_ms, exc)
+            raise
         response.raise_for_status()
         if response.content:
             return response.json()

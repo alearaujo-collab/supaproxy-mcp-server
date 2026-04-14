@@ -3,6 +3,7 @@
 import base64
 import json
 import logging
+import time
 from typing import Optional
 
 import httpx
@@ -67,9 +68,13 @@ def register(mcp, client):  # noqa: ANN001
                     "Inform them that their session may have expired and they should "
                     "reload the application."
                 )
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] get_current_user: user_id=%s", user_id)
             result = await client.get("/auth/user", include_connection=False)
+            logger.info("[PERF <<<] get_current_user: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] get_current_user: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             logger.error(
                 "get_current_user failed — status=%s body=%s",
                 exc.response.status_code,
@@ -85,6 +90,7 @@ def register(mcp, client):  # noqa: ANN001
                 )
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] get_current_user: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in get_current_user")
             return f"Unexpected error: {exc}"
 
@@ -126,11 +132,16 @@ def register(mcp, client):  # noqa: ANN001
                 body["password"] = password
             if image_id is not None:
                 body["imageId"] = image_id
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] update_current_user: fields=%s", list(data_section.keys()) + (["password"] if password else []))
             result = await client.put("/auth/user", json=body, include_connection=False)
+            logger.info("[PERF <<<] update_current_user: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] update_current_user: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] update_current_user: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in update_current_user")
             return f"Unexpected error: {exc}"
 
@@ -148,11 +159,17 @@ def register(mcp, client):  # noqa: ANN001
             JSON array of user objects, or an error message.
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] admin_list_users")
             result = await client.get("/auth/admin/users", include_connection=False)
+            count = len(result) if isinstance(result, list) else "?"
+            logger.info("[PERF <<<] admin_list_users: %dms | count=%s", int((time.perf_counter() - t0) * 1000), count)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] admin_list_users: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] admin_list_users: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in admin_list_users")
             return f"Unexpected error: {exc}"
 
@@ -193,11 +210,16 @@ def register(mcp, client):  # noqa: ANN001
                 body["is_active"] = is_active
             if department is not None:
                 body["department"] = department
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] admin_create_user: email=%s, roles=%s", email, roles)
             result = await client.post("/auth/admin/users", json=body, include_connection=False)
+            logger.info("[PERF <<<] admin_create_user: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] admin_create_user: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] admin_create_user: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in admin_create_user")
             return f"Unexpected error: {exc}"
 
@@ -241,13 +263,18 @@ def register(mcp, client):  # noqa: ANN001
                 body["new_password"] = new_password
             if department is not None:
                 body["department"] = department
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] admin_update_user: user_id=%s, fields=%s", user_id, list(body.keys()))
             result = await client.put(
                 f"/auth/admin/users/{user_id}", json=body, include_connection=False,
             )
+            logger.info("[PERF <<<] admin_update_user: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] admin_update_user: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] admin_update_user: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in admin_update_user")
             return f"Unexpected error: {exc}"
 
@@ -264,14 +291,19 @@ def register(mcp, client):  # noqa: ANN001
             JSON confirmation, or an error message.
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] admin_delete_user: user_id=%s, hard=%s", user_id, hard)
             result = await client.delete(
                 f"/auth/admin/users/{user_id}?hard={'true' if hard else 'false'}",
                 include_connection=False,
             )
+            logger.info("[PERF <<<] admin_delete_user: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] admin_delete_user: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] admin_delete_user: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in admin_delete_user")
             return f"Unexpected error: {exc}"
 
@@ -287,11 +319,17 @@ def register(mcp, client):  # noqa: ANN001
             JSON array of role objects (id, name, description).
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] list_roles")
             result = await client.get("/auth/admin/roles", include_connection=False)
+            count = len(result) if isinstance(result, list) else "?"
+            logger.info("[PERF <<<] list_roles: %dms | count=%s", int((time.perf_counter() - t0) * 1000), count)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] list_roles: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] list_roles: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in list_roles")
             return f"Unexpected error: {exc}"
 
@@ -310,11 +348,16 @@ def register(mcp, client):  # noqa: ANN001
             body: dict = {"name": name}
             if description is not None:
                 body["description"] = description
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] create_role: name=%s", name)
             result = await client.post("/auth/admin/roles", json=body, include_connection=False)
+            logger.info("[PERF <<<] create_role: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] create_role: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] create_role: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in create_role")
             return f"Unexpected error: {exc}"
 
@@ -340,13 +383,18 @@ def register(mcp, client):  # noqa: ANN001
                 body["name"] = name
             if description is not None:
                 body["description"] = description
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] update_role: role_id=%s, fields=%s", role_id, list(body.keys()))
             result = await client.put(
                 f"/auth/admin/roles/{role_id}", json=body, include_connection=False,
             )
+            logger.info("[PERF <<<] update_role: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] update_role: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] update_role: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in update_role")
             return f"Unexpected error: {exc}"
 
@@ -361,13 +409,18 @@ def register(mcp, client):  # noqa: ANN001
             JSON confirmation, or an error message.
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] delete_role: role_id=%s", role_id)
             result = await client.delete(
                 f"/auth/admin/roles/{role_id}", include_connection=False,
             )
+            logger.info("[PERF <<<] delete_role: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] delete_role: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] delete_role: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in delete_role")
             return f"Unexpected error: {exc}"
 
@@ -384,14 +437,19 @@ def register(mcp, client):  # noqa: ANN001
             JSON confirmation, or an error message.
         """
         try:
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] set_user_roles: user_id=%s, roles=%s", user_id, roles)
             result = await client.put(
                 f"/auth/admin/users/{user_id}/roles",
                 json={"roles": roles},
                 include_connection=False,
             )
+            logger.info("[PERF <<<] set_user_roles: %dms", int((time.perf_counter() - t0) * 1000))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] set_user_roles: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] set_user_roles: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in set_user_roles")
             return f"Unexpected error: {exc}"

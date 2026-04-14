@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from typing import Optional
 
 import httpx
@@ -40,11 +41,17 @@ def register(mcp, client):  # noqa: ANN001
             body: dict = {"table": table, "data": data, "returnIdentity": return_identity}
             if timeout is not None:
                 body["timeout"] = timeout
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] insert_record: table=%s, cols=%d", table, len(data))
             result = await client.post("/api/sql-server/data/insert", json=body)
+            rows = result.get("rowsAffected", "?") if isinstance(result, dict) else "?"
+            logger.info("[PERF <<<] insert_record: %dms | rowsAffected=%s", int((time.perf_counter() - t0) * 1000), rows)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] insert_record: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] insert_record: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in insert_record")
             return f"Unexpected error: {exc}"
 
@@ -83,11 +90,17 @@ def register(mcp, client):  # noqa: ANN001
             body: dict = {"table": table, "data": data, "where": where}
             if timeout is not None:
                 body["timeout"] = timeout
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] update_record: table=%s, set_cols=%d, where_cols=%d", table, len(data), len(where))
             result = await client.put("/api/sql-server/data/update", json=body)
+            rows = result.get("rowsAffected", "?") if isinstance(result, dict) else "?"
+            logger.info("[PERF <<<] update_record: %dms | rowsAffected=%s", int((time.perf_counter() - t0) * 1000), rows)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] update_record: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] update_record: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in update_record")
             return f"Unexpected error: {exc}"
 
@@ -121,11 +134,17 @@ def register(mcp, client):  # noqa: ANN001
             body: dict = {"table": table, "data": data, "conflictKeys": conflict_keys}
             if timeout is not None:
                 body["timeout"] = timeout
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] upsert_record: table=%s, conflict_keys=%s", table, conflict_keys)
             result = await client.post("/api/sql-server/data/upsert", json=body)
+            rows = result.get("rowsAffected", "?") if isinstance(result, dict) else "?"
+            logger.info("[PERF <<<] upsert_record: %dms | rowsAffected=%s", int((time.perf_counter() - t0) * 1000), rows)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] upsert_record: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] upsert_record: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in upsert_record")
             return f"Unexpected error: {exc}"
 
@@ -154,11 +173,17 @@ def register(mcp, client):  # noqa: ANN001
             body: dict = {"table": table, "where": where}
             if timeout is not None:
                 body["timeout"] = timeout
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] delete_record: table=%s, where_cols=%d", table, len(where))
             result = await client.delete("/api/sql-server/data/delete", json=body)
+            rows = result.get("rowsAffected", "?") if isinstance(result, dict) else "?"
+            logger.info("[PERF <<<] delete_record: %dms | rowsAffected=%s", int((time.perf_counter() - t0) * 1000), rows)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] delete_record: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] delete_record: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in delete_record")
             return f"Unexpected error: {exc}"
 
@@ -189,11 +214,17 @@ def register(mcp, client):  # noqa: ANN001
             body: dict = {"table": table, "rows": rows}
             if timeout is not None:
                 body["timeout"] = timeout
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] bulk_insert: table=%s, rows=%d", table, len(rows))
             result = await client.post("/api/sql-server/data/bulk-insert", json=body)
+            affected = result.get("rowsAffected", "?") if isinstance(result, dict) else "?"
+            logger.info("[PERF <<<] bulk_insert: %dms | rowsAffected=%s", int((time.perf_counter() - t0) * 1000), affected)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] bulk_insert: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] bulk_insert: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in bulk_insert")
             return f"Unexpected error: {exc}"
 
@@ -227,11 +258,17 @@ def register(mcp, client):  # noqa: ANN001
             body: dict = {"sql": sql, "transaction": transaction}
             if timeout is not None:
                 body["timeout"] = timeout
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] execute_sql: sql=%.60s, transaction=%s", sql.replace("\n", " "), transaction)
             result = await client.post("/api/sql-server/execute", json=body)
+            rows = result.get("rowsAffected", "?") if isinstance(result, dict) else "?"
+            logger.info("[PERF <<<] execute_sql: %dms | rowsAffected=%s", int((time.perf_counter() - t0) * 1000), rows)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] execute_sql: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] execute_sql: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in execute_sql")
             return f"Unexpected error: {exc}"
 
@@ -268,10 +305,16 @@ def register(mcp, client):  # noqa: ANN001
                 body["limit"] = limit
             if timeout is not None:
                 body["timeout"] = timeout
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] export_data: table=%s, limit=%s", table or "(sql)", limit)
             result = await client.post("/api/sql-server/data/export", json=body)
+            row_count = len(result) if isinstance(result, list) else (result.get("rowCount", "?") if isinstance(result, dict) else "?")
+            logger.info("[PERF <<<] export_data: %dms | rows=%s", int((time.perf_counter() - t0) * 1000), row_count)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] export_data: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] export_data: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in export_data")
             return f"Unexpected error: {exc}"

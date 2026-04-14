@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from typing import Optional
 
 import httpx
@@ -52,11 +53,17 @@ def register(mcp, client):  # noqa: ANN001
                 body["parameters"] = parameters
             if timeout is not None:
                 body["timeout"] = timeout
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] query: sql=%.60s, params_count=%d", sql.replace("\n", " "), len(parameters or {}))
             result = await client.post("/api/sql-server/query", json=body)
+            row_count = result.get("rowCount", "?") if isinstance(result, dict) else "?"
+            logger.info("[PERF <<<] query: %dms | rowCount=%s", int((time.perf_counter() - t0) * 1000), row_count)
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] query: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] query: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in query")
             return f"Unexpected error: {exc}"
 
@@ -103,10 +110,16 @@ def register(mcp, client):  # noqa: ANN001
                 body["params"] = params
             if timeout is not None:
                 body["timeout"] = timeout
+            t0 = time.perf_counter()
+            logger.info("[PERF >>>] query_paginated: sql=%.60s, page=%d, page_size=%d", sql.replace("\n", " "), page, page_size)
             result = await client.post("/api/sql-server/query/paginated", json=body)
+            pagination = result.get("pagination", {}) if isinstance(result, dict) else {}
+            logger.info("[PERF <<<] query_paginated: %dms | totalRecords=%s", int((time.perf_counter() - t0) * 1000), pagination.get("totalRecords", "?"))
             return json.dumps(result, indent=2, ensure_ascii=False)
         except httpx.HTTPStatusError as exc:
+            logger.warning("[PERF !!!] query_paginated: HTTP %d apos %dms", exc.response.status_code, int((time.perf_counter() - t0) * 1000))
             return f"Error {exc.response.status_code}: {exc.response.text}"
         except Exception as exc:
+            logger.warning("[PERF !!!] query_paginated: falha apos %dms — %s", int((time.perf_counter() - t0) * 1000), exc)
             logger.exception("Unexpected error in query_paginated")
             return f"Unexpected error: {exc}"
