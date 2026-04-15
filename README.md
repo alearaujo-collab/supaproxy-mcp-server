@@ -239,6 +239,18 @@ http://127.0.0.1:9001/docs
 
 ```
 
+## Cloudflare - Expose Public HTTP
+Cloudflare Tunnel é a solução correta aqui — é gratuito, estável com SSE e sem as limitações do ngrok free:
+
+-Instalar no Powershell:
+winget install Cloudflare.cloudflared
+
+-Usar:
+cloudflared tunnel --url http://localhost:9001
+ Vai aparecer o endereço na áre "Your quick Tunnel has been created!". Acesse o {endereço}/docs:  
+  {endereço}/docs
+
+
 ## License
 
 MIT
