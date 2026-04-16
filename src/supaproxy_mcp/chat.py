@@ -173,7 +173,14 @@ async def _run_agentic_loop(
             "possui rotas na lista acima, inclua os links relevantes ao "
             "final da resposta usando o formato "
             "`[[nav:<rota>|<texto do link>]]`. Substitua placeholders como "
-            "`{id}` pelos valores reais obtidos nas consultas."
+            "`{id}` pelos valores reais obtidos nas consultas.\n"
+            "Quando a resposta listar registros (tabela, lista ou texto), "
+            "transforme CADA nome de registro em um deep link com "
+            "`?q=<nome>` na rota de listagem. Ex.: na coluna Nome de uma "
+            "tabela de barcos, escreva "
+            "`[[nav:/boats/select?q=AMAVI|AMAVI]]` em vez de apenas "
+            "'AMAVI'. Se existir rota de detalhe com `{id}` e o id "
+            "estiver disponível, prefira a rota de detalhe."
         )
 
     for iteration in range(settings.ai_max_tool_iterations):

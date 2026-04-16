@@ -160,6 +160,19 @@ mcp = FastMCP(
         "5. Quando as rotas de navegação já estiverem incluídas no contexto "
         "do sistema (seção 'Rotas de navegação disponíveis'), use-as "
         "diretamente sem chamar `get_app_routes`.\n"
+        "6. Quando a resposta listar registros (em tabela, lista ou texto "
+        "corrido), transforme CADA nome de registro em um deep link com "
+        "`?q=<nome>` na rota de listagem da entidade. O nome do registro "
+        "vira o texto do link.\n"
+        "   Exemplo — rota cadastrada `/boats/select`, registros retornados "
+        "'AMAVI' e 'Nomad':\n"
+        "   - Na coluna da tabela: `[[nav:/boats/select?q=AMAVI|AMAVI]]`\n"
+        "   - Na coluna da tabela: `[[nav:/boats/select?q=Nomad|Nomad]]`\n"
+        "   Isso vale para QUALQUER entidade (clientes, pedidos, etc.) e "
+        "para qualquer formato de resposta (tabela, bullets, texto).\n"
+        "   Quando houver rota de detalhe com `{id}` E o id estiver "
+        "disponível, prefira a rota de detalhe. Use `?q=` como fallback "
+        "quando só existir rota de listagem ou o id não estiver disponível.\n"
     ),
 )
 
