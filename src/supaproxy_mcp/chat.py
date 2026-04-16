@@ -8,6 +8,8 @@ Arquitetura:
         ↓
     mcp._tool_manager.list_tools() → converte para formato Anthropic
         ↓
+    Pré-carrega rotas de navegação (AppNavigation) → injeta no system prompt
+        ↓
     Loop agêntico (máx ai_max_tool_iterations):
         Claude API → tool_use? → mcp._tool_manager.call_tool() → resultado
         │                                     ↑
@@ -146,6 +148,8 @@ async def _run_agentic_loop(
     messages: list[dict],
     tools: list[dict],
     settings,
+    *,
+    nav_context: str = "[]",
 ) -> dict:
     """Executa o loop agêntico completo: Claude ↔ tools diretas.
 
@@ -155,6 +159,22 @@ async def _run_agentic_loop(
     t_loop_start = time.perf_counter()
     logger.info("[PERF >>>] _run_agentic_loop: iniciando (model=%s, max_iter=%d)", settings.ai_model, settings.ai_max_tool_iterations)
     final: dict = {"text": "", "model": settings.ai_model, "stop_reason": "end_turn"}
+
+    # ── Build system prompt with pre-fetched navigation context ──────
+    system_text = mcp.instructions or "You are a helpful AI assistant."
+    if nav_context and nav_context.strip() != "[]":
+        system_text += (
+            "\n\n## Rotas de navegação disponíveis nesta aplicação\n"
+            "As rotas abaixo foram pré-carregadas da tabela AppNavigation "
+            "desta aplicação. Use-as diretamente — NÃO é necessário chamar "
+            "`get_app_routes`.\n\n"
+            f"{nav_context}\n\n"
+            "IMPORTANTE: SEMPRE que sua resposta envolver uma entidade que "
+            "possui rotas na lista acima, inclua os links relevantes ao "
+            "final da resposta usando o formato "
+            "`[[nav:<rota>|<texto do link>]]`. Substitua placeholders como "
+            "`{id}` pelos valores reais obtidos nas consultas."
+        )
 
     for iteration in range(settings.ai_max_tool_iterations):
 
@@ -172,7 +192,7 @@ async def _run_agentic_loop(
                     system=[
                         {
                             "type": "text",
-                            "text": mcp.instructions or "You are a helpful AI assistant.",
+                            "text": system_text,
                             "cache_control": {"type": "ephemeral"},
                         }
                     ],
@@ -351,10 +371,23 @@ def make_chat_handler(mcp, settings):
             messages.append({"role": "user", "content": chat_req.message})
             logger.info("[PERF] handler: parse+build_messages=%dms", int((time.perf_counter() - t_request) * 1000))
 
+            # ── 4b. Pré-carregar rotas de navegação (AppNavigation) ──────
+            # Injeta as rotas diretamente no system prompt para que o LLM
+            # sempre tenha os deep links disponíveis sem depender de uma
+            # decisão de tool call.
+            t_nav = time.perf_counter()
+            nav_context = await _call_tool_direct(mcp, "get_app_routes", {})
+            logger.info(
+                "[PERF] handler: pre-fetch nav_routes=%dms | routes_len=%d",
+                int((time.perf_counter() - t_nav) * 1000),
+                len(nav_context),
+            )
+
             # ── 5. Executar loop agêntico ────────────────────────────────
             try:
                 result = await _run_agentic_loop(
-                    anthropic_client, mcp, messages, tools, settings
+                    anthropic_client, mcp, messages, tools, settings,
+                    nav_context=nav_context,
                 )
             except RuntimeError as exc:
                 logger.error("[PERF !!!] handler: LLM error apos %dms — %s", int((time.perf_counter() - t_request) * 1000), exc)
